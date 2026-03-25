@@ -1,0 +1,185 @@
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Arial;
+    background: #f5f5f7;
+}
+
+.schedule {
+    margin: 20px;
+    border-radius: 16px;
+    overflow: hidden;
+    background: white;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+}
+
+.header {
+    padding: 12px 16px;
+    font-weight: 600;
+    font-size: 14px;
+    background: #fafafa;
+    border-bottom: 1px solid #eee;
+}
+
+.grid {
+    display: grid;
+    grid-auto-rows: 42px;
+}
+
+.cell {
+    border: 1px solid #f0f0f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.menu {
+    position: fixed;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    padding: 6px;
+    z-index: 9999;
+}
+
+.menu-item {
+    padding: 8px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 6px;
+}
+
+.menu-item:hover {
+    background: #f5f5f7;
+}
+
+.menu-sep {
+    height: 1px;
+    background: #eee;
+    margin: 4px 0;
+}
+
+.cell:focus {
+    outline: 2px solid #007aff;
+    z-index: 3;
+}
+
+.cell:not(.assigned):not(.blocked):not(.editing):hover {
+    background: #f5f5f7;
+}
+
+.name {
+    justify-content: flex-start;
+    padding-left: 10px;
+    font-weight: 500;
+    background: #fafafa;
+    white-space: pre-line;
+}
+
+.dayHeader {
+    font-size: 11px;
+    color: #666;
+    background: #fafafa;
+}
+
+.summary {
+    font-size: 11px;
+    line-height: 1.2;
+    padding: 4px;
+    font-size: 11px;
+    opacity: 0.8;
+    gap: 2px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.1;
+}
+
+.summary .hours {
+    font-weight: 600;
+}
+
+.summary .days {
+    font-size: 10px;
+    opacity: 0.7;
+}
+
+.assigned {
+    background: #1d1d1f;
+    color: white;
+    border-radius: 10px;
+    margin: 4px;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.assigned:hover {
+    filter: brightness(1.1);
+}
+
+.blocked {
+    background: #eee;
+    color: #aaa;
+    pointer-events: none;
+}
+
+.selected {
+    outline: 2px solid #007aff;
+}
+
+.editing {
+    outline: 2px solid #ff9500;
+    background: white !important;
+    color: black !important;
+}
+
+.invalid {
+    background: #ffe5e5 !important;
+}
+
+.valid {
+    background: #e6ffe6 !important;
+}
+
+.invalid-shift {
+    background: #ffe5e5 !important;
+}
+
+.add-btn {
+    background: #007aff;
+    color: white;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.add-btn:hover {
+    background: #006ae6;
+    transform: translateY(-1px);
+}
+
+.add-btn:active {
+    transform: scale(0.97);
+}
+
+.add-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.2);
+}
+
+.sunday {
+    color: #ff3b30;
+    font-weight: 600;
+}
+
+.saturday {
+    color: #999;
+}
