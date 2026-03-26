@@ -38,7 +38,7 @@ async function renderHeader() {
 async function logout() {
     const _client = window.client;
     if (_client) await _client.auth.signOut();
-    window.location.href = "/login/login.html";
+    window.location.href = "/login/";
 }
 
 // eksportuj do window żeby inline scripts mogły wywoływać
