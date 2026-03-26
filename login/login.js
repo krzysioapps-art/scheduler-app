@@ -43,6 +43,6 @@ async function login() {
     if (emp?.role === "manager") {
         window.location.href = "/manager/manager.html";
     } else {
-        window.location.href = "/employee/employee.html";
+        window.location.href = "/employee/";
     }
 }
