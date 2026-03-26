@@ -1,0 +1,52 @@
+/* ROOT CONTAINER */
+#header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+/* HEADER */
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    padding: 14px 24px;
+    background: #ffffff;
+    border-bottom: 1px solid #e5e5ea;
+
+    box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+}
+
+/* LEFT */
+.app-header .left {
+    font-size: 17px;
+    font-weight: 600;
+}
+
+/* RIGHT */
+.app-header .right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+/* USER */
+.app-header .user {
+    font-size: 13px;
+    color: #666;
+}
+
+/* BUTTON */
+.app-header button {
+    padding: 6px 12px;
+    border-radius: 8px;
+    background: #007aff;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+.app-header button:hover {
+    background: #006ae6;
+}

@@ -1,0 +1,246 @@
+
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+}
+/* ========================
+   CALENDAR GRID
+======================== */
+
+#calendar {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 10px; /* 🔥 odstęp między komórkami */
+    padding: 16px;
+}
+
+/* ========================
+   DAY CELL
+======================== */
+
+.day {
+    height: 70px;
+
+    border-radius: 12px;
+    background: #f2f2f7; /* 🔥 jasnoszare */
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.day:hover {
+    transform: translateY(-2px);
+    background: #e5e5ea;
+}
+
+/* empty state */
+.day:empty::after {
+    content: "+";
+    color: #aaa;
+}
+
+/* ========================
+   STATUSY REQUESTÓW
+======================== */
+
+.day.pending {
+    background: #f2f2f7;
+    box-shadow: inset 0 0 0 2px #ccc;
+}
+
+.day.accepted {
+    background: #eaffea;
+    box-shadow: inset 0 0 0 2px #34c759;
+}
+
+.day.rejected {
+    background: #ffeaea;
+    box-shadow: inset 0 0 0 2px #ff3b30;
+}
+
+/* ========================
+   INPUT
+======================== */
+
+input {
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+}
+
+/* ========================
+   BUTTON
+======================== */
+
+button {
+    padding: 6px 10px;
+    border: none;
+    border-radius: 6px;
+    background: #007aff;
+    color: white;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #006ae6;
+}
+
+.day-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.day-number {
+    font-size: 11px;
+    opacity: 0.5;
+}
+
+.day-value {
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.container {
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 0 16px;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+    background: #fafafa;
+}
+
+.header-left h2 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.header-right {
+    display: flex;
+    gap: 8px;
+}
+
+@media (max-width: 600px) {
+    #calendar {
+        gap: 6px;
+        padding: 10px;
+    }
+
+    .day {
+        height: 60px;
+        font-size: 13px;
+    }
+
+    .header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .header-right {
+        width: 100%;
+    }
+
+    .header-right input {
+        flex: 1;
+    }
+}
+
+.day-label {
+    font-size: 11px;
+    font-weight: 600;
+}
+
+/* sobota */
+.day-label.saturday {
+    color: #999;
+}
+
+/* niedziela */
+.day-label.sunday {
+    color: #ff3b30;
+}
+
+.day.empty {
+    background: transparent;
+    border: none;
+    cursor: default;
+}
+
+.day-header {
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+/* sobota */
+.day-header.saturday {
+    color: #999;
+}
+
+/* niedziela */
+.day-header.sunday {
+    color: #ff3b30;
+}
+
+/* 🔵 grafik */
+.day-value.shift {
+    font-weight: 700;
+    color: #007aff;
+}
+
+/* 🟡 request */
+.request-badge {
+    font-size: 10px;
+    opacity: 0.7;
+}
+
+.day.accepted {
+    cursor: not-allowed;
+    opacity: 0.8;
+}
+
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    padding: 12px 20px;
+    background: white;
+    border-bottom: 1px solid var(--border);
+
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.app-header .right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.app-header .user {
+    font-size: 13px;
+    color: var(--text-muted);
+}

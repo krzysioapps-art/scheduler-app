@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Scheduler</title>
+    <link rel="stylesheet" href="../styles.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script src="/supabaseClient.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
+
+    <script src="../components/header.js" defer></script>
+    <link rel="stylesheet" href="../components/header.css">
+    <script src="../app.js"></script>
+    <script src="manager.js"></script>
+</head>
+
+<body>
+    <div id="header"></div>
+    <h2>Scheduler</h2>
+
+    <button onclick="exportPDF()">📄 Pobierz PDF</button>
+
+
+    <div id="app"></div>
+
+
+
+    <script>
+        console.log("START SCRIPT");
+
+        let employees = [];
+        let visibleEmployeesByDept = {};
+
+        let departments = [];
+        let schedules = window.schedules;
+        let stats = {};
+        let norm = {};
+        let departmentTotals = {};
+
+        let isSelecting = false;
+        let selectionStart = null;
+        let clipboard = [];
+        let clipboardMeta = null;
+        let menuEl = null;
+        let clickTimer = null;
+        let hasDragged = false;
+
+        let lastSelectedCell = null;
+
+        let errorMap = {};
+        let requests = {};
+
+        const YEAR = window.YEAR;
+        const MONTH = window.MONTH;
+
+        const app = document.getElementById("app");
+
+        async function checkAuthAndRole(requiredRole) {
+            const { data: { user } } = await client.auth.getUser();
+
+            console.log("USER ID:", user?.id);
+
+            if (!user) {
+                window.location.href = "/login.html";
+                return null;
+            }
+
+            const { data, error } = await client
+                .from("employees")
+                .select("*")
+                .eq("auth_user_id", user.id)
+                .single();
+
+            console.log("EMPLOYEE FROM DB:", data);
+            console.log("ERROR:", error);
+
+            if (!data || data.role !== requiredRole) {
+                window.location.href = "/employee.html";
+                return null;
+            }
+
+            return user;
+        }
+
+        function parseInput(val) {
+            val = val.trim();
+
+            // 8 → 8-16
+            if (/^\d{1,2}$/.test(val)) {
+                const s = +val;
+                const e = s + 8;
+
+                if (e > 24) return null;
+
+                return {
+                    start: String(s).padStart(2, '0') + ":00",
+                    end: String(e).padStart(2, '0') + ":00"
+                };
+            }
+
+            // 8-16
+            const m = val.match(/^(\d{1,2})-(\d{1,2})$/);
+            if (!m) return null;
+
+            const s = +m[1];
+            const e = +m[2];
+
+            if (s >= e || s < 0 || e > 24) return null;
+
+            return {
+                start: String(s).padStart(2, '0') + ":00",
+                end: String(e).padStart(2, '0') + ":00"
+            };
+        }
+
+        function formatTimeRange(s, e) {
+            return `${parseInt(s)}-${parseInt(e)}`;
+        }
+
+        function moveTo(cell, rowOffset, colOffset) {
+            const row = +cell.dataset.row + rowOffset;
+            const col = +cell.dataset.col + colOffset;
+
+            cell.blur(); // 🔥 KLUCZOWE
+
+            const next = document.querySelector(
+                `.cell[data-row="${row}"][data-col="${col}"]`
+            );
+
+            if (next) {
+                startEdit(next);
+            }
+        }
+
+        function render() {
+            app.innerHTML = "";
+
+            departments.forEach(dept => {
+                const wrapper = document.createElement("div");
+                wrapper.className = "schedule";
+
+                const header = document.createElement("div");
+                header.className = "header";
+
+                const totals = departmentTotals[dept.id] || { hours: 0, days: 0 };
+
+                // 🔹 tekst
+                const title = document.createElement("div");
+                title.innerText = `${dept.name}
+${Math.round(totals.hours)}h / ${totals.days}d`;
+
+                // 🔹 przycisk
+                const addBtn = document.createElement("button");
+                addBtn.className = "btn btn-primary";
+                addBtn.innerText = "+ Dodaj pracownika";
+
+                addBtn.onclick = async () => {
+
+                    const selected = await openEmployeePicker({
+                        departmentId: dept.id,
+                        alreadyAdded: visibleEmployeesByDept[dept.id] || [],
+                        employees
+                    });
+
+                    if (!selected) return;
+
+                    visibleEmployeesByDept[dept.id] = [
+                        ...new Set([
+                            ...(visibleEmployeesByDept[dept.id] || []),
+                            ...selected
+                        ])
+                    ];
+
+                    render();
+                };
+
+                // 🔹 kontener (żeby było obok siebie)
+                const headerRow = document.createElement("div");
+                headerRow.style.display = "flex";
+                headerRow.style.alignItems = "center";
+                headerRow.style.justifyContent = "space-between";
+
+                headerRow.appendChild(title);
+                headerRow.appendChild(addBtn);
+
+                header.appendChild(headerRow);
+
+                const grid = document.createElement("div");
+                grid.className = "grid";
+                grid.style.gridTemplateColumns = `180px repeat(${DAYS}, 1fr) 100px 100px 100px`;
+                grid.appendChild(cell("Pracownik", "dayHeader"));
+
+                for (let d = 1; d <= DAYS; d++) {
+                    const dow = getDayOfWeek(YEAR, MONTH, d);
+
+                    let extraClass = "";
+                    if (dow === 7) extraClass = " sunday";
+                    if (dow === 6) extraClass = " saturday";
+
+                    grid.appendChild(cell(getDayLabel(d), "dayHeader" + extraClass));
+                }
+
+                // 👉 DOPIERO NA KOŃCU
+                grid.appendChild(cell("Dział", "dayHeader"));
+                grid.appendChild(cell("Suma", "dayHeader"));
+                grid.appendChild(cell("Max", "dayHeader"));
+
+
+                const deptEmployees = employees.filter(emp => {
+                    const empId = String(emp.id);
+
+                    const hasShift = Object.values(schedules[empId] || {})
+                        .some(s => s && s.departmentId === dept.id);
+
+                    const manuallyAdded = visibleEmployeesByDept[dept.id]?.includes(emp.id);
+
+                    const hasRequest = requests[empId] && Object.values(requests[empId]).some(r => r);
+
+                    return hasShift || manuallyAdded || hasRequest;
+                });
+
+                deptEmployees.forEach((emp, rowIndex) => {
+                    const stat = stats[emp.id] || {};
+
+                    const hours = stat.totalHours || 0;
+                    const days = stat.workingDays || 0;
+
+                    const nameCell = cell(emp.name, "name");
+                    grid.appendChild(nameCell);
+
+                    for (let d = 1; d <= DAYS; d++) {
+                        const colIndex = d;
+
+
+                        const c = document.createElement("div");
+                        c.className = "cell";
+                        c.tabIndex = 0;
+
+                        c.dataset.emp = String(emp.id);
+                        c.dataset.day = d;
+                        c.dataset.dept = dept.id;
+                        c.dataset.row = rowIndex;
+                        c.dataset.col = colIndex;
+
+                        const empId = String(emp.id);
+
+                        const shift = schedules[empId]?.[d];
+                        const req = getRequest(empId, d);
+
+                        if (shift) {
+                            if (shift.departmentId === dept.id) {
+
+                                const inner = document.createElement("div");
+                                inner.className = "cell-content assigned";
+                                inner.innerText = formatTimeRange(shift.start, shift.end);
+
+                                c.appendChild(inner);
+
+                            } else {
+                                c.classList.add("blocked");
+                            }
+                        }
+
+                        // 🔵 REQUEST VISUAL (NOWY MODEL)
+                        if (req) {
+                            const isBlocked = shift && shift.departmentId !== dept.id;
+
+                            const txt = formatRequest(req);
+                            c.title = `Prośba: ${txt}`;
+
+                            if (!shift && txt) {
+                                const inner = document.createElement("div");
+                                inner.className = "cell-content request-text";
+                                inner.innerText = txt;
+                                c.appendChild(inner);
+                            }
+
+                            if (!isBlocked) {
+                                if (req.status === "pending") {
+                                    c.classList.add("req-pending");
+                                }
+
+                                if (req.status === "accepted") {
+                                    c.classList.add("req-accepted");
+                                }
+
+                                if (req.status === "rejected") {
+                                    c.classList.add("req-rejected");
+                                }
+                            }
+                        }
+
+                        if (!c.classList.contains("blocked")) {
+                            c.addEventListener("dblclick", () => {
+                                if (clickTimer) {
+                                    clearTimeout(clickTimer);
+                                    clickTimer = null;
+                                }
+                                startEdit(c);
+                            });
+
+                            c.addEventListener("keydown", (e) => {
+
+                                const inner = c.querySelector(".cell-content");
+
+                                if (/^[0-9\-]$/.test(e.key) && (!inner || !inner.classList.contains("editing"))) {
+                                    e.preventDefault();
+
+                                    startEdit(c);
+
+                                    const inner = c.querySelector(".cell-content");
+                                    inner.innerText = e.key;
+
+                                    const range = document.createRange();
+                                    const sel = window.getSelection();
+                                    range.selectNodeContents(inner);
+                                    range.collapse(false);
+                                    sel.removeAllRanges();
+                                    sel.addRange(range);
+
+                                    return;
+                                }
+
+                                if (e.key === "Tab") {
+                                    e.preventDefault();
+
+                                    const row = c.dataset.row;
+                                    const col = +c.dataset.col;
+
+                                    c.blur();
+
+                                    const next = document.querySelector(
+                                        `.cell[data-row="${row}"][data-col="${col + 1}"]`
+                                    );
+
+                                    if (next) startEdit(next);
+                                }
+
+                                if (e.key === "Enter") {
+                                    e.preventDefault();
+
+                                    const row = c.dataset.row;
+                                    const col = +c.dataset.col;
+
+                                    c.blur();
+
+                                    const next = document.querySelector(
+                                        `.cell[data-row="${row}"][data-col="${col + 1}"]`
+                                    );
+
+                                    if (next) startEdit(next);
+                                }
+
+                                if (e.key === "Escape") {
+                                    cancel(c, emp.id, d);
+                                }
+
+                                // 👉 STRZAŁKI MUSZĄ BYĆ TU
+                                if (e.key === "ArrowRight") {
+                                    e.preventDefault();
+                                    moveTo(c, 0, 1);
+                                }
+
+                                if (e.key === "ArrowLeft") {
+                                    e.preventDefault();
+                                    moveTo(c, 0, -1);
+                                }
+
+                                if (e.key === "ArrowDown") {
+                                    e.preventDefault();
+                                    moveTo(c, 1, 0);
+                                }
+
+                                if (e.key === "ArrowUp") {
+                                    e.preventDefault();
+                                    moveTo(c, -1, 0);
+                                }
+                            });
+
+
+                        }
+
+                        c.addEventListener("input", () => {
+                            const key = `${c.dataset.emp}_${c.dataset.day}`;
+                            delete errorMap[key];
+                            c.classList.remove("invalid-shift");
+                            c.title = "";
+                            const inner = c.querySelector(".cell-content");
+                            if (!inner) return;
+
+                            const val = inner.innerText.trim();
+                            const p = parseInput(val);
+
+                            c.classList.remove("invalid", "valid");
+
+                            if (!val) return;
+
+                            c.classList.add(p ? "valid" : "invalid");
+                        });
+
+                        c.addEventListener("focusout", async (e) => {
+                            // 🔥 KLUCZ: jeśli dalej jesteśmy w tej komórce → ignoruj
+                            if (c.contains(e.relatedTarget)) return;
+
+                            const inner = c.querySelector(".cell-content");
+                            if (!inner || !inner.classList.contains("editing")) return;
+
+                            inner.classList.remove("editing");
+                            inner.contentEditable = false;
+
+                            const val = inner.innerText.trim();
+
+                            if (!val) {
+                                const date = buildDate(YEAR, MONTH, d);
+
+                                await client.from("shifts")
+                                    .delete()
+                                    .eq("employee_id", emp.id)
+                                    .eq("date", date);
+
+                                // 🔵 RESET REQUEST
+                                const empId = String(u.employeeId);
+                                const req = requests?.[empId]?.[u.day];
+
+                                if (req) {
+                                    await client
+                                        .from("shift_requests")
+                                        .update({ status: "pending" })
+                                        .eq("id", req.id);
+
+                                    requests[empId][u.day].status = "pending";
+                                }
+
+                                render();
+                                return;
+                            }
+
+                            const p = parseInput(val);
+
+                            if (!p) {
+                                inner.innerText = ""; // 🔥 NIE cell.innerText
+                                return;
+                            }
+
+                            const existing = getShift(emp.id, d);
+
+                            if (!canModifyShift(existing, dept.id)) {
+                                return;
+                            }
+
+                            await saveShift({
+                                employeeId: emp.id,
+                                day: d,
+                                departmentId: dept.id,
+                                ...p
+                            });
+
+                            schedules = await loadShifts(YEAR, MONTH);
+                            recalcAll();
+
+                            render();
+                        });
+
+                        c.addEventListener("mousedown", (e) => {
+
+                            // 🔥 NIE reaguj na prawy klik
+                            if (e.button === 2) return;
+
+                            closeMenu();
+
+                            // 🔵 CTRL → toggle selection
+                            if (e.ctrlKey) {
+                                isSelecting = false;
+                                selectionStart = null;
+
+                                c.classList.toggle("selected");
+                                lastSelectedCell = c;
+                                return;
+                            }
+
+                            // 🟣 SHIFT → zakres
+                            if (e.shiftKey && lastSelectedCell) {
+                                isSelecting = false;
+
+                                selectRect(lastSelectedCell, c);
+
+                                selectionStart = lastSelectedCell;
+                                return;
+                            }
+
+                            // 🟢 NORMAL CLICK
+                            isSelecting = true;
+                            hasDragged = false;
+                            selectionStart = c;
+
+                            clearSelection();
+                            c.classList.add("selected");
+
+                            lastSelectedCell = c;
+                        });
+
+                        c.addEventListener("contextmenu", (e) => {
+                            e.preventDefault();
+
+                            const isAlreadySelected = c.classList.contains("selected");
+
+                            // 👉 tylko jeśli klik poza zaznaczeniem
+                            if (!isAlreadySelected) {
+                                clearSelection();
+                                c.classList.add("selected");
+                            }
+
+                            // 🔥 KLUCZOWE — ustaw anchor do operacji
+                            selectionStart = c;
+                            lastSelectedCell = c;
+
+                            showMenu(e.clientX, e.clientY);
+                        });
+
+                        c.addEventListener("mouseover", () => {
+                            if (!isSelecting || !selectionStart) return;
+                            hasDragged = true;
+                            selectRect(selectionStart, c);
+                        });
+
+                        grid.appendChild(c);
+                    }
+
+                    const deptStat = stat.departmentStats?.[dept.id] || { hours: 0, days: 0 };
+
+                    // 1️⃣ dział (dla TEGO grida)
+                    const deptCell = document.createElement("div");
+                    deptCell.className = "cell dayHeader summary";
+
+                    deptCell.innerHTML = `
+  <div class="hours">${Math.round(deptStat.hours)}h</div>
+  <div class="days">${deptStat.days}d</div>
+`;
+                    grid.appendChild(deptCell);
+
+                    // 2️⃣ suma (WSZYSTKIE działy pracownika)
+                    const sumCell = document.createElement("div");
+                    sumCell.className = "cell dayHeader summary";
+
+                    sumCell.innerHTML = `
+  <div class="hours">${hours}h</div>
+  <div class="days">${days}d</div>
+`;
+
+                    if (hours > norm.maxHours) {
+                        sumCell.style.background = "#ffe5e5";
+                    }
+
+                    grid.appendChild(sumCell);
+
+                    // 3️⃣ max (norma)
+                    const maxCell = document.createElement("div");
+                    maxCell.className = "cell dayHeader summary";
+
+                    maxCell.innerHTML = `
+  <div class="hours">${norm.maxHours || 0}h</div>
+  <div class="days">${norm.maxDays || 0}d</div>
+`;
+                    grid.appendChild(maxCell);
+
+                });
+
+                wrapper.appendChild(header);
+                wrapper.appendChild(grid);
+                app.appendChild(wrapper);
+            });
+
+            // 🔴 PRZYWRACANIE BŁĘDÓW PO RENDERZE
+            Object.entries(errorMap).forEach(([key, errors]) => {
+                const [employeeId, day] = key.split("_");
+                applyErrorToCell(employeeId, +day, errors);
+            });
+        }
+
+        // COPY / PASTE
+
+        document.addEventListener("keydown", (e) => {
+            if (e.ctrlKey && e.key === "c") {
+                clipboard = getSelectedShifts();
+            }
+
+            if (e.ctrlKey && e.key === "v") {
+                pasteWithOffset();
+            }
+        });
+
+        async function pasteWithOffset() {
+            const grid = selectionStart.closest(".schedule");
+            const selectedCells = [...grid.querySelectorAll(".selected")]
+                .filter(c => c.dataset.day);
+            if (!clipboard.length || !selectedCells.length) return;
+
+            const startCell = selectionStart;
+            if (!startCell) return;
+
+            const baseRow = +startCell.dataset.row;
+            const baseCol = +startCell.dataset.col;
+
+            const updates = [];
+
+            clipboard.forEach(item => {
+                const targetRow = baseRow + item.rowOffset;
+                const targetCol = baseCol + item.colOffset;
+
+                const targetCell = [...grid.querySelectorAll(".cell")].find(c =>
+                    +c.dataset.row === targetRow &&
+                    +c.dataset.col === targetCol
+                );
+
+                if (!targetCell) return;
+
+                const empId = targetCell.dataset.emp;
+                const day = +targetCell.dataset.day;
+                const deptId = targetCell.dataset.dept;
+                const existing = getShift(empId, day);
+
+                if (!canModifyShift(existing, deptId)) {
+                    return;
+                }
+
+                updates.push({
+                    employeeId: empId,
+                    day,
+                    departmentId: deptId,
+                    start: item.start,
+                    end: item.end
+                });
+            });
+
+            if (updates.length) {
+                for (const u of updates) {
+                    await saveShift(u);
+                }
+
+                schedules = await loadShifts(YEAR, MONTH);
+                recalcAll();
+                render();
+            }
+        }
+
+        window.addEventListener("mouseup", () => {
+            isSelecting = false;
+        });
+
+        function showMenu(x, y) {
+            closeMenu();
+
+            const menu = document.createElement("div");
+            menu.className = "menu";
+
+            const presets = ["7-15", "8-16", "9-17"];
+
+            presets.forEach(p => {
+                const item = document.createElement("div");
+                item.className = "menu-item";
+                item.innerText = p;
+
+                item.onclick = () => applyPreset(p);
+                menu.appendChild(item);
+            });
+
+            const sep = document.createElement("div");
+            sep.className = "menu-sep";
+            menu.appendChild(sep);
+
+            const clear = document.createElement("div");
+            clear.className = "menu-item";
+            clear.innerText = "Wyczyść";
+            clear.onclick = clearSelected;
+
+            menu.appendChild(clear);
+
+            menu.style.left = x + "px";
+            menu.style.top = y + "px";
+
+            document.body.appendChild(menu);
+            menuEl = menu;
+        }
+
+        function closeMenu() {
+            if (menuEl) {
+                menuEl.remove();
+                menuEl = null;
+            }
+        }
+
+        async function applyPreset(val) {
+            const parsed = parseInput(val);
+            if (!parsed) return;
+
+            const updates = [];
+
+            getSelected().forEach(c => {
+
+                const existing = getShift(c.employeeId, c.day);
+
+                if (!canModifyShift(existing, c.departmentId)) {
+                    return;
+                }
+
+                updates.push({
+                    employeeId: c.employeeId,
+                    day: c.day,
+                    departmentId: c.departmentId,
+                    start: parsed.start,
+                    end: parsed.end
+                });
+            });
+
+            if (updates.length) {
+                for (const u of updates) {
+                    await saveShift(u);
+                }
+
+                schedules = await loadShifts(YEAR, MONTH);
+                recalcAll();
+                render();
+            }
+
+            closeMenu();
+        }
+
+        async function clearSelected() {
+            const updates = [];
+
+            getSelected().forEach(c => {
+
+                const existing = getShift(c.employeeId, c.day);
+
+                if (!canModifyShift(existing, c.departmentId)) {
+                    return;
+                }
+
+                updates.push({
+                    employeeId: c.employeeId,
+                    day: c.day,
+                    departmentId: c.departmentId
+                });
+            });
+
+            if (updates.length) {
+                for (const u of updates) {
+                    const date = buildDate(YEAR, MONTH, u.day);
+
+                    await client.from("shifts")
+                        .delete()
+                        .eq("employee_id", u.employeeId)
+                        .eq("date", date);
+
+                    const req = requests?.[u.employeeId]?.[u.day];
+
+                    if (req) {
+                        await client
+                            .from("shift_requests")
+                            .update({ status: "pending" })
+                            .eq("id", req.id);
+
+                        requests[String(u.employeeId)][u.day].status = "pending";
+                    }
+                }
+
+                schedules = await loadShifts(YEAR, MONTH);
+                recalcAll();
+
+                render();
+            }
+
+            closeMenu();
+        }
+
+        function startEdit(c) {
+            let inner = c.querySelector(".cell-content");
+
+            if (!inner) {
+                inner = document.createElement("div");
+                inner.className = "cell-content";
+                c.appendChild(inner);
+            }
+
+            inner.contentEditable = true;
+            inner.classList.add("editing");
+            inner.classList.remove("assigned"); // 🔥 ważne
+
+            // ❌ NIE czyść tekstu
+            // inner.innerText = "";
+
+            setTimeout(() => inner.focus(), 0);
+
+            // zaznacz tekst (jak Excel)
+            const range = document.createRange();
+            range.selectNodeContents(inner);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+        }
+
+        window.addEventListener("click", (e) => {
+            if (menuEl && !menuEl.contains(e.target)) closeMenu();
+        });
+
+        function selectRect(start, end) {
+            clearSelection();
+
+            const r1 = +start.dataset.row;
+            const c1 = +start.dataset.col;
+            const r2 = +end.dataset.row;
+            const c2 = +end.dataset.col;
+
+            const rMin = Math.min(r1, r2);
+            const rMax = Math.max(r1, r2);
+            const cMin = Math.min(c1, c2);
+            const cMax = Math.max(c1, c2);
+
+            const grid = start.closest(".schedule");
+
+            grid.querySelectorAll(".cell").forEach(c => {
+                if (!c.dataset.day) return;
+
+                const r = +c.dataset.row;
+                const col = +c.dataset.col;
+
+                if (r >= rMin && r <= rMax && col >= cMin && col <= cMax) {
+                    c.classList.add("selected");
+                }
+            });
+        }
+
+        function clearSelection() {
+            document.querySelectorAll(".cell.selected")
+                .forEach(c => c.classList.remove("selected"));
+        }
+
+        function getSelected() {
+            return [...document.querySelectorAll(".cell.selected")]
+                .filter(c => c.dataset.day)
+                .map(c => ({
+                    employeeId: c.dataset.emp,
+                    day: +c.dataset.day,
+                    departmentId: c.dataset.dept
+                }));
+        }
+
+        function getSelectedShifts() {
+            if (!selectionStart) return [];
+
+            const grid = selectionStart.closest(".schedule");
+            const selectedCells = [...grid.querySelectorAll(".selected")]
+                .filter(c => c.dataset.day);
+
+            if (!selectedCells.length) return [];
+
+            const rows = selectedCells.map(c => +c.dataset.row);
+            const cols = selectedCells.map(c => +c.dataset.col);
+
+            const rMin = Math.min(...rows);
+            const cMin = Math.min(...cols);
+
+            clipboardMeta = { rMin, cMin };
+
+            return selectedCells.map(c => {
+                const shift = schedules[c.dataset.emp]?.[+c.dataset.day];
+
+                if (!shift) return null;
+
+                return {
+                    rowOffset: +c.dataset.row - rMin,
+                    colOffset: +c.dataset.col - cMin,
+                    start: shift.start,
+                    end: shift.end
+                };
+            }).filter(Boolean);
+        }
+
+        function cell(txt, cls) {
+            const d = document.createElement("div");
+            d.className = "cell " + cls;
+            d.innerText = txt;
+            return d;
+        }
+
+
+
+        function cancel(c, emp, day) {
+            const inner = c.querySelector(".cell-content");
+
+            const s = schedules[emp]?.[day];
+
+            if (inner) {
+                inner.classList.remove("editing");
+                inner.contentEditable = false;
+                inner.innerText = s ? formatTimeRange(s.start, s.end) : "";
+            } else {
+                c.innerText = s ? formatTimeRange(s.start, s.end) : "";
+            }
+
+            c.blur();
+        }
+
+        function canModifyShift(existing, departmentId) {
+            if (!existing) return true;
+            return existing.departmentId === departmentId;
+        }
+
+        function getShift(employeeId, day) {
+            if (!schedules[employeeId]) return null;
+            return schedules[employeeId][day] || null;
+        }
+
+        function showError({ employeeId, day, errors }) {
+
+            const key = `${employeeId}_${day}`;
+            errorMap[key] = errors;
+
+            const cell = [...document.querySelectorAll(".cell")].find(c =>
+                c.dataset.emp == employeeId &&
+                +c.dataset.day === day
+            );
+
+            if (!cell) return;
+
+            // 🔴 COFNIĘCIE DO POPRZEDNIEJ WARTOŚCI
+            const shift = schedules[employeeId]?.[day];
+
+            const inner = cell.querySelector(".cell-content");
+
+            if (shift) {
+                if (inner) {
+                    inner.innerText = formatTimeRange(shift.start, shift.end);
+                } else {
+                    const newInner = document.createElement("div");
+                    newInner.className = "cell-content assigned";
+                    newInner.innerText = formatTimeRange(shift.start, shift.end);
+                    cell.appendChild(newInner);
+                }
+            } else {
+                if (inner) inner.innerText = "";
+            }
+
+            applyErrorToCell(employeeId, day, errors);
+        }
+
+        function applyErrorToCell(employeeId, day, errors) {
+
+            const cell = [...document.querySelectorAll(".cell")].find(c =>
+                c.dataset.emp == employeeId &&
+                +c.dataset.day === day
+            );
+
+            if (!cell) return;
+
+            cell.classList.add("invalid-shift");
+            cell.title = errors.join("\n");
+            cell.style.border = "2px solid red";
+        }
+
+        function getDayOfWeek(year, month, day) {
+            const date = new Date(year, month - 1, day);
+            let d = date.getDay(); // 0 = niedziela
+            if (d === 0) d = 7;
+            return d; // 1 = pon, 7 = nd
+        }
+
+        function getDayLabel(day) {
+            const map = {
+                1: "Pn",
+                2: "Wt",
+                3: "Śr",
+                4: "Czw",
+                5: "Pt",
+                6: "Sb",
+                7: "Nd"
+            };
+
+            const dow = getDayOfWeek(YEAR, MONTH, day);
+            return `${day} ${map[dow]}`;
+        }
+
+        function openEmployeePicker({ departmentId, alreadyAdded, employees }) {
+            return new Promise(resolve => {
+
+                const modal = document.getElementById("employeeModal");
+                const list = document.getElementById("empList");
+                const search = document.getElementById("empSearch");
+
+                modal.classList.remove("hidden");
+
+                let filtered = employees.filter(e => !alreadyAdded.includes(e.id));
+                let selected = new Set();
+
+                function renderList() {
+                    list.innerHTML = "";
+
+                    filtered.forEach(emp => {
+                        const row = document.createElement("div");
+                        row.className = "emp-row";
+
+                        const cb = document.createElement("input");
+                        cb.type = "checkbox";
+                        cb.checked = selected.has(emp.id);
+
+                        cb.onchange = () => {
+                            if (cb.checked) selected.add(emp.id);
+                            else selected.delete(emp.id);
+                        };
+
+                        const label = document.createElement("div");
+                        label.innerText = emp.name;
+                        label.style.marginLeft = "8px";
+
+                        row.appendChild(cb);
+                        row.appendChild(label);
+
+                        list.appendChild(row);
+                    });
+                }
+
+                renderList();
+
+                search.oninput = (e) => {
+                    const val = e.target.value.toLowerCase();
+
+                    filtered = employees.filter(e =>
+                        !alreadyAdded.includes(e.id) &&
+                        e.name.toLowerCase().includes(val)
+                    );
+
+                    renderList();
+                };
+
+                document.getElementById("empAdd").onclick = () => {
+                    modal.classList.add("hidden");
+                    resolve([...selected]);
+                };
+
+                document.getElementById("empCancel").onclick = () => {
+                    modal.classList.add("hidden");
+                    resolve(null);
+                };
+            });
+        }
+
+        function recalcAll() {
+            stats = calculateStats(schedules);
+            departmentTotals = calculateDepartmentTotals(schedules);
+            norm = getMonthNorm(YEAR, MONTH);
+        }
+        async function init() {
+            employees = await loadEmployees();
+            departments = await loadDepartments();
+
+            const [sh, req] = await Promise.all([
+                loadShifts(YEAR, MONTH),
+                loadRequests(YEAR, MONTH)
+
+            ]);
+            console.log("REQUESTS:", req);
+            schedules = sh;
+            requests = req;
+
+            recalcAll();
+            // renderHeader jest eksportowany z header.js (moduł) i dostępny przez window
+            if (window.renderHeader) await window.renderHeader();
+            render();
+        }
+        function getRequest(empId, day) {
+            return requests?.[String(empId)]?.[day] || null;
+        }
+        (async () => {
+            const user = await checkAuthAndRole("manager");
+            if (!user) return;
+
+            await init();
+        })();
+
+        function exportPDF() {
+            const element = document.getElementById("app");
+
+            const opt = {
+                margin: 0.5,
+                filename: `grafik_${YEAR}_${MONTH}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 1 },
+                jsPDF: { unit: 'cm', format: 'a4', orientation: 'landscape' }
+            };
+
+            html2pdf().set(opt).from(element).save();
+        }
+
+    </script>
+
+    <div id="employeeModal" class="modal hidden">
+        <div class="modal-content">
+
+            <input id="empSearch" placeholder="Szukaj pracownika..." />
+
+            <div id="empList"></div>
+
+            <div class="modal-actions">
+                <button id="empCancel">Anuluj</button>
+                <button id="empAdd">Dodaj</button>
+            </div>
+
+        </div>
+    </div>
+
+
+</body>
+
+</html>
