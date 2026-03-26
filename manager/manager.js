@@ -102,7 +102,7 @@ function formatRequest(req) {
         return "OFF";
     }
 
-    return `${parseInt(req.start)}-${parseInt(req.end)}`;
+    return `${req.start?.slice(0, 5)}-${req.end?.slice(0, 5)}`;
 }
 
 function buildDate(year, month, day) {
@@ -259,7 +259,7 @@ function validateShift(schedules, employeeId, day, newShift) {
 
     // 🔴 tydzień
     const weekHours = getWeekHoursWithNew(schedules, employeeId, day, newShift);
-    if (weekHours > 40) {
+    if (weekHours > 40.01) {
         errors.push(`>40h w tygodniu (${Math.round(weekHours)})`);
     }
 
@@ -393,7 +393,7 @@ window.calculateStats = function (schedules) {
         }
 
         stats[empId] = {
-            totalHours: Math.round(totalHours),
+            totalHours: Math.round(totalHours * 10) / 10,
             workingDays,
             departmentStats
         };
@@ -419,7 +419,7 @@ window.calculateDepartmentTotals = function (schedules) {
                 totals[dept] = { hours: 0, days: 0 };
             }
 
-            totals[dept].hours += hours;
+            totals[dept].hours = Math.round((totals[dept].hours + hours) * 10) / 10;
             totals[dept].days += 1;
         }
     }

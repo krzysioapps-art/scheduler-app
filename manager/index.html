@@ -162,7 +162,7 @@
                 // 🔹 tekst
                 const title = document.createElement("div");
                 title.innerText = `${dept.name}
-${Math.round(totals.hours)}h / ${totals.days}d`;
+${Math.round(totals.hours * 10) / 10}h / ${totals.days}d`;
 
                 // 🔹 przycisk
                 const addBtn = document.createElement("button");
@@ -443,7 +443,7 @@ ${Math.round(totals.hours)}h / ${totals.days}d`;
                                         .update({ status: "pending" })
                                         .eq("id", req.id);
 
-                                    requests[empId][u.day].status = "pending";
+                                    requests[empId][d].status = "pending";
                                 }
 
                                 render();
@@ -548,7 +548,7 @@ ${Math.round(totals.hours)}h / ${totals.days}d`;
                     deptCell.className = "cell dayHeader summary";
 
                     deptCell.innerHTML = `
-  <div class="hours">${Math.round(deptStat.hours)}h</div>
+  <div class="hours">${Math.round(deptStat.hours * 10) / 10}h</div>
   <div class="days">${deptStat.days}d</div>
 `;
                     grid.appendChild(deptCell);
