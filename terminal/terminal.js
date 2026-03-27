@@ -80,7 +80,7 @@ function renderQR(code) {
     qrDiv.innerHTML = "";
 
     new QRCode(qrDiv, {
-        text: `http://localhost:3000/employee/worktime?code=${code}`,
+        text: `http://scheduler-app-mauve.vercel.app/employee/worktime?code=${code}`,
         width: 200,
         height: 200,
     });
