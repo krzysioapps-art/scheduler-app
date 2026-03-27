@@ -1,5 +1,6 @@
 const client = window.client;
 const DOMAIN = "local.pl";
+const scanCode = localStorage.getItem("scan_code");
 
 async function login() {
     const loginInput = document.getElementById("login");
@@ -42,6 +43,12 @@ async function login() {
 
     if (emp?.role === "manager") {
         window.location.href = "/manager/";
+        return;
+    }
+
+    // 🔥 jeśli przyszedł z QR → wróć do worktime
+    if (scanCode) {
+        window.location.href = "/employee/worktime";
     } else {
         window.location.href = "/employee/";
     }

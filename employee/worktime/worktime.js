@@ -3,7 +3,7 @@ const endBtn = document.getElementById("endBtn");
 const info = document.getElementById("info");
 
 const params = new URLSearchParams(window.location.search);
-const code = params.get("code");
+let code = params.get("code");
 
 // 🔹 pobierz usera
 async function getUser() {
@@ -55,87 +55,24 @@ async function verifyToken(pin) {
     return data;
 }
 
-// 🔹 START pracy
-async function startWork(userId) {
-    const pin = prompt("Wpisz PIN");
-
-    if (!pin || pin.length < 4) {
-        alert("Podaj poprawny PIN");
-        return;
-    }
-
-    const token = await verifyToken(pin);
-    if (!token) {
-        alert("Nieprawidłowy PIN");
-        return;
-    }
-
-    const existing = await getCurrentSession(userId);
-    if (existing) {
-        alert("Już pracujesz");
-        return;
-    }
-
-    const { error } = await client.from("work_sessions").insert({
-        user_id: userId,
-        status: "active",
-    });
-
-    if (error) {
-        alert("Błąd startu pracy");
-        console.error(error);
-        return;
-    }
-
-    const session = await getCurrentSession(userId);
-    showStop(session);
-}
-
-// 🔹 STOP pracy
-async function endWork(userId) {
-    const pin = prompt("Wpisz PIN");
-
-    if (!pin || pin.length < 4) {
-        alert("Podaj poprawny PIN");
-        return;
-    }
-
-    const token = await verifyToken(pin);
-    if (!token) {
-        alert("Nieprawidłowy PIN");
-        return;
-    }
-
-    const session = await getCurrentSession(userId);
-    if (!session) {
-        alert("Brak aktywnej sesji");
-        return;
-    }
-
-    const { error } = await client
-        .from("work_sessions")
-        .update({
-            status: "finished",
-            end_time: new Date().toISOString(),
-        })
-        .eq("id", session.id);
-
-    if (error) {
-        alert("Błąd zakończenia pracy");
-        console.error(error);
-        return;
-    }
-
-    showStart();
-}
-
 // 🔥 INIT
 (async () => {
     const user = await getUser();
 
+    // 🔐 jeśli brak usera → zapisz code i login
     if (!user) {
-        alert("Nie jesteś zalogowany");
+        if (code) {
+            localStorage.setItem("scan_code", code);
+        }
+        window.location.href = "/login";
         return;
+    }
+
+    // 🔁 odzyskaj code po loginie
+    const codeFromStorage = localStorage.getItem("scan_code");
+
+    if (!code && codeFromStorage) {
+        code = codeFromStorage;
     }
 
     // 🔥 jeśli wejście z QR
@@ -143,9 +80,11 @@ async function endWork(userId) {
         const token = await verifyCode(code);
 
         if (!token) {
-            alert("Kod nieważny");
+            alert("Kod nieważny lub wygasł");
             return;
         }
+
+        localStorage.removeItem("scan_code");
 
         await handleWorkAction(user.id, token);
 
