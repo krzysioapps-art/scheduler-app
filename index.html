@@ -6,85 +6,9 @@
     <title>Scheduler</title>
 
     <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="components/header.css">
-
     <script src="components/header.js" defer></script>
 
-    <style>
-        .hero {
-            max-width: 900px;
-            margin: 80px auto;
-            text-align: center;
-            padding: 0 20px;
-        }
 
-        .hero h1 {
-            font-size: 36px;
-            margin-bottom: 16px;
-        }
-
-        .hero p {
-            font-size: 16px;
-            color: #666;
-            margin-bottom: 30px;
-        }
-
-        .hero-actions {
-            display: flex;
-            justify-content: center;
-            gap: 12px;
-        }
-
-        .btn-main {
-            padding: 10px 18px;
-            border-radius: 8px;
-            background: #007aff;
-            color: white;
-            border: none;
-            font-size: 14px;
-            cursor: pointer;
-        }
-
-        .btn-main:hover {
-            background: #006ae6;
-        }
-
-        .btn-secondary {
-            padding: 10px 18px;
-            border-radius: 8px;
-            background: #f2f2f7;
-            border: none;
-            font-size: 14px;
-            cursor: pointer;
-        }
-
-        .features {
-            max-width: 1000px;
-            margin: 60px auto;
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
-            padding: 0 20px;
-        }
-
-        .feature {
-            background: white;
-            border: 1px solid #eee;
-            border-radius: 12px;
-            padding: 20px;
-            text-align: left;
-        }
-
-        .feature h3 {
-            margin-top: 0;
-        }
-
-        @media (max-width: 800px) {
-            .features {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
 </head>
 
 <body>
@@ -93,35 +17,52 @@
     <div id="header"></div>
 
     <!-- 🔥 HERO -->
-    <div class="hero">
-        <h1>Twórz grafiki pracy bez chaosu</h1>
+    <div class="landing-hero">
+        <h1>Sprawdź swój grafik i zgłaszaj dostępność</h1>
         <p>
-            Zarządzaj zmianami pracowników, reaguj na prośby i kontroluj normy —
+            Zobacz kiedy pracujesz, zgłoś dni wolne i zarządzaj zmianami —
             wszystko w jednym miejscu.
         </p>
 
-        <div class="hero-actions">
-            <button class="btn-main" onclick="goToLogin()">Zaloguj się</button>
-            <button class="btn-secondary" onclick="scrollToFeatures()">Zobacz więcej</button>
+        <div class="landing-actions">
+            <button class="btn btn-primary btn-lg" onclick="goToLogin()">Zaloguj się</button>
+            <button class="btn btn-secondary btn-lg" onclick="scrollToFeatures()">Zobacz więcej</button>
         </div>
     </div>
 
+    <div style="text-align:center; margin-top:20px; font-size:14px; color:#666;">
+        Zaloguj się, aby sprawdzić swój grafik i zgłosić dostępność
+    </div>
+
+    <div class="landing-problem">
+        <h2>Koniec z pytaniem „kiedy mam zmianę?”</h2>
+        <p>
+            Nie musisz już pisać do kierownika ani szukać grafiku w wiadomościach.
+            Wszystko masz w jednym miejscu.
+        </p>
+    </div>
+
     <!-- 🔥 FEATURES -->
-    <div class="features" id="features">
-        <div class="feature">
-            <h3>⚡ Szybkie planowanie</h3>
-            <p>Twórz grafik jak w Excelu — klik, wpisz, gotowe.</p>
+    <div class="landing-features" id="features">
+
+        <div class="landing-feature">
+            <div class="feature-icon">📅</div>
+            <h3>Twój grafik zawsze pod ręką</h3>
+            <p>Sprawdzaj zmiany na telefonie lub komputerze.</p>
         </div>
 
-        <div class="feature">
-            <h3>📩 Obsługa próśb</h3>
-            <p>Pracownicy zgłaszają preferencje, Ty decydujesz.</p>
+        <div class="landing-feature">
+            <div class="feature-icon">📝</div>
+            <h3>Zgłaszaj dostępność</h3>
+            <p>Urlopy, preferencje, dni wolne — bez wiadomości i chaosu.</p>
         </div>
 
-        <div class="feature">
-            <h3>📊 Kontrola norm</h3>
-            <p>Automatyczne liczenie godzin i dni pracy.</p>
+        <div class="landing-feature">
+            <div class="feature-icon">🔔</div>
+            <h3>Brak niespodzianek</h3>
+            <p>Widzisz zmiany w grafiku od razu.</p>
         </div>
+
     </div>
 
     <script>

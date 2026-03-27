@@ -4,9 +4,9 @@
 
 :root {
     /* COLORS */
-    --bg: #f5f5f7;
+    --bg: #f2f4f7;
     --surface: #ffffff;
-    --border: rgba(0, 0, 0, 0.08);
+    --border: rgba(0, 0, 0, 0.12);
 
     --text: #1d1d1f;
     --text-muted: #6e6e73;
@@ -70,6 +70,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    width: 100%;
 }
 
 /* ========================
@@ -79,21 +80,28 @@ body {
 .btn {
     border: none;
     border-radius: 999px;
-    padding: 8px 14px;
-    font-size: 12px;
+    padding: 10px 16px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all 0.2s ease;
+}
+
+.btn:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
 }
 
 /* PRIMARY */
 .btn-primary {
     background: var(--primary);
+    box-shadow: 0 6px 14px rgba(0, 122, 255, 0.2);
     color: white;
 }
 
 .btn-primary:hover {
     background: var(--primary-hover);
+    box-shadow: 0 10px 20px rgba(0, 122, 255, 0.3);
     transform: translateY(-1px);
 }
 
@@ -169,7 +177,7 @@ body {
 }
 
 .cell:hover {
-    background: #f9f9fb;
+    background: #eef4ff;
 }
 
 .cell:focus {
@@ -185,7 +193,8 @@ body {
     justify-content: flex-start;
     padding-left: 10px;
     font-weight: 500;
-    background: #fafafa;
+    background: #f7f8fa;
+    font-weight: 600;
     white-space: pre-line;
 }
 
@@ -196,7 +205,8 @@ body {
 .dayHeader {
     font-size: 11px;
     color: var(--text-muted);
-    background: #fafafa;
+    background: #f0f2f5;
+    font-weight: 500;
     position: sticky;
     top: 0;
     z-index: 2;
@@ -204,13 +214,12 @@ body {
 
 /* WEEKEND COLORS */
 
-.sunday {
-    color: var(--danger);
-    font-weight: 600;
-}
-
 .saturday {
     color: #999;
+}
+
+.sunday {
+    color: #ff3b30;
 }
 
 /* ========================
@@ -221,7 +230,11 @@ body {
     width: 100%;
     height: 100%;
 
+    text-align: center;
+    line-height: 1.2;
+
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
 
@@ -326,7 +339,9 @@ body {
     position: fixed;
     background: white;
     border-radius: var(--radius-md);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06),
+        0 2px 6px rgba(0, 0, 0, 0.04);
+    border: 1px solid var(--border);
     padding: 6px;
     z-index: 9999;
 }
@@ -348,59 +363,150 @@ body {
     margin: 4px 0;
 }
 
-/* ========================
-   🪟 MODAL
-======================== */
-
+/* MODAL BACKDROP */
+/* BACKDROP */
 .modal {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.4);
+
+    background: rgba(0, 0, 0, 0.0); /* start */
+    backdrop-filter: blur(0px);
+
     display: flex;
     align-items: center;
     justify-content: center;
+
     z-index: 9999;
+
+    opacity: 0;
+    transition: all 0.2s ease;
 }
 
-.modal.hidden {
-    display: none;
+/* ACTIVE */
+.modal.show {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(4px);
 }
 
+/* CONTENT */
 .modal-content {
-    width: 420px;
-    max-height: 70vh;
+    width: 440px;
+    max-height: 75vh;
+
     background: white;
-    border-radius: var(--radius-lg);
-    padding: var(--space-lg);
+    border-radius: 18px;
+
     display: flex;
     flex-direction: column;
-    gap: var(--space-sm);
+
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+
+    transform: translateY(12px) scale(0.96);
+    opacity: 0;
+
+    transition: all 0.22s cubic-bezier(.2, .8, .2, 1);
 }
 
-/* ========================
-   👥 EMPLOYEE LIST
-======================== */
+/* ENTER */
+.modal.show .modal-content {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+}
 
+/* EXIT */
+.modal.closing .modal-content {
+    transform: translateY(10px) scale(0.97);
+    opacity: 0;
+}
+
+.modal.closing {
+    opacity: 0;
+    background: rgba(0, 0, 0, 0);
+}
+
+/* HEADER */
+.modal-header {
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--border);
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+}
+
+/* SEARCH */
+.modal-search {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.modal-search input {
+    width: 100%;
+    padding: 10px 12px;
+
+    border-radius: 10px;
+    border: 1px solid var(--border);
+
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.modal-search input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+}
+
+/* LIST */
 #empList {
     overflow-y: auto;
-    flex: 1;
+    padding: 8px;
 }
 
+/* ROW */
 .emp-row {
     display: flex;
     align-items: center;
-    padding: 6px;
-    border-radius: var(--radius-sm);
+
+    padding: 10px 12px;
+    border-radius: 10px;
+
+    cursor: pointer;
+    transition: all 0.15s ease;
 }
 
 .emp-row:hover {
-    background: #f5f5f7;
+    background: #f5f7fb;
 }
 
+/* checkbox większy */
+.emp-row input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+}
+
+/* label */
+.emp-row div {
+    margin-left: 10px;
+    font-size: 14px;
+}
+
+/* ACTIONS */
 .modal-actions {
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+
     display: flex;
     justify-content: flex-end;
     gap: 10px;
+}
+
+/* BUTTON polish */
+.modal-actions .btn {
+    min-width: 90px;
 }
 
 /* REQUEST TEXT */
@@ -422,6 +528,9 @@ body {
     box-shadow: inset 0 0 0 2px #ff3b30;
 }
 
+.hidden {
+    display: none !important;
+}
 
 /* ========================
    CALENDAR GRID
@@ -497,6 +606,241 @@ input {
     border: 1px solid #ccc;
 }
 
+.day-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.day-number {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.day-value {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+
+
+/*****************************************HEADER */
+#header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+/* HEADER */
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    padding: 14px 24px;
+    background: #ffffff;
+    border-bottom: 1px solid #e5e5ea;
+
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+/* LEFT */
+.app-header .left {
+    font-size: 17px;
+    font-weight: 600;
+}
+
+/* RIGHT */
+.app-header .right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+/* USER */
+.app-header .user {
+    font-size: 13px;
+    color: #666;
+    opacity: 0.8;
+}
+
+/* BUTTON */
+.app-header .btn {
+    padding: 6px 12px;
+}
+
+.app-header .btn:hover {
+    transform: translateY(-1px);
+}
+
+
+
+/* ========================
+   🚀 LANDING PAGE
+======================== */
+
+.landing-hero {
+    max-width: 1000px;
+    margin: 100px auto;
+    text-align: center;
+    padding: 60px 20px;
+
+    background: linear-gradient(135deg, #007aff10, #34c75910);
+    border-radius: 24px;
+}
+
+.landing-hero h1 {
+    font-size: 44px;
+    margin-bottom: 16px;
+    letter-spacing: -0.5px;
+}
+
+.landing-hero p {
+    font-size: 18px;
+    color: var(--text-muted);
+    margin-bottom: 30px;
+}
+
+.landing-actions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
+
+/* PROBLEM */
+.landing-problem {
+    max-width: 700px;
+    margin: 80px auto;
+    text-align: center;
+}
+
+.landing-problem h2 {
+    font-size: 28px;
+    margin-bottom: 10px;
+}
+
+/* FEATURES */
+.landing-features {
+    max-width: 1000px;
+    margin: 60px auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    padding: 0 20px;
+}
+
+.landing-feature {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s ease;
+}
+
+.landing-feature:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 35px rgba(0, 0, 0, 0.08);
+}
+
+.feature-icon {
+    font-size: 28px;
+}
+
+@media (max-width: 800px) {
+    .landing-features {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+
+
+
+/********************************* ========================
+  employee
+======================== */
+
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+}
+
+/* ========================
+   CALENDAR GRID
+======================== */
+
+#calendar {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 10px;
+    /* 🔥 odstęp między komórkami */
+    padding: 16px;
+}
+
+/* ========================
+   DAY CELL
+======================== */
+
+.day {
+    height: 70px;
+
+    border-radius: 12px;
+    background: #f2f2f7;
+    /* 🔥 jasnoszare */
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.day:hover {
+    transform: translateY(-2px);
+    background: #e5e5ea;
+}
+
+/* empty state */
+.day:empty::after {
+    content: "+";
+    color: #aaa;
+}
+
+/* ========================
+   STATUSY REQUESTÓW
+======================== */
+
+.day.pending {
+    background: #f2f2f7;
+    box-shadow: inset 0 0 0 2px #ccc;
+}
+
+.day.accepted {
+    background: #eaffea;
+    box-shadow: inset 0 0 0 2px #34c759;
+}
+
+.day.rejected {
+    background: #ffeaea;
+    box-shadow: inset 0 0 0 2px #ff3b30;
+}
+
+/* ========================
+   INPUT
+======================== */
+
+input {
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+}
+
 /* ========================
    BUTTON
 ======================== */
@@ -518,16 +862,436 @@ button:hover {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
     gap: 4px;
 }
 
 .day-number {
     font-size: 11px;
-    color: var(--text-muted);
+    opacity: 0.5;
 }
 
 .day-value {
-    font-size: 14px;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.container {
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 0 16px;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+    background: #fafafa;
+}
+
+.header-left h2 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.header-right {
+    display: flex;
+    gap: 8px;
+}
+
+@media (max-width: 600px) {
+    #calendar {
+        gap: 6px;
+        padding: 10px;
+    }
+
+    .day {
+        height: 60px;
+        font-size: 13px;
+    }
+
+    .header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .header-right {
+        width: 100%;
+    }
+
+    .header-right input {
+        flex: 1;
+    }
+}
+
+.day-label {
+    font-size: 11px;
     font-weight: 600;
+}
+
+/* sobota */
+.day-label.saturday {
+    color: #999;
+}
+
+/* niedziela */
+.day-label.sunday {
+    color: #ff3b30;
+}
+
+.day.empty {
+    background: transparent;
+    border: none;
+    cursor: default;
+}
+
+.day-header {
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+/* sobota */
+.day-header.saturday {
+    color: #999;
+}
+
+/* niedziela */
+.day-header.sunday {
+    color: #ff3b30;
+}
+
+/* 🟡 request */
+.request-badge {
+    font-size: 10px;
+    opacity: 0.7;
+}
+
+.day.accepted {
+    cursor: not-allowed;
+    opacity: 0.8;
+}
+
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    padding: 12px 20px;
+    background: white;
+    border-bottom: 1px solid var(--border);
+
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.app-header .right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.app-header .user {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+
+
+
+/* ========================
+   🧭 PAGE HEADER (toolbar)
+======================== */
+
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px;
+
+    margin: 20px;
+    margin-bottom: 10px;
+
+    background: var(--surface);
+    border-radius: var(--radius-md);
+    padding: 12px 16px;
+}
+
+.page-title h1 {
+    margin: 0;
+    font-size: 22px;
+}
+
+.page-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.loader-spinner {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+
+    border: 3px solid #ddd;
+    border-top-color: var(--primary);
+
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.grid-loader {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(255, 255, 255, 0.6);
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.skeleton {
+    position: relative;
+    overflow: hidden;
+    background: #e5e7eb;
+    border-radius: 6px;
+}
+
+.skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg,
+            transparent,
+            rgba(255, 255, 255, 0.5),
+            transparent);
+    animation: shimmer 1.2s infinite;
+}
+
+@keyframes shimmer {
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+/* ========================
+   🖨 PRINT
+======================== */
+
+@page {
+    size: A4 landscape;
+    margin: 10mm;
+}
+
+@media print {
+    body * {
+        visibility: hidden;
+    }
+
+    #print-root,
+    #print-root * {
+        visibility: visible;
+    }
+
+    #print-root {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        font-family: Arial, sans-serif;
+    }
+}
+
+/* tabela */
+.print-section {
+    margin-bottom: 20px;
+    page-break-after: always;
+}
+
+.print-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.print-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    table-layout: fixed;
+}
+
+.print-table th,
+.print-table td {
+    border: 1px solid #000;
+    padding: 3px;
+    text-align: center;
+}
+
+.print-table th:first-child,
+.print-table td:first-child {
+    text-align: left;
+    font-weight: 600;
+    width: 120px;
+}
+
+@page {
+    size: A4 landscape;
+    margin: 10mm;
+}
+
+@media print {
+    body * {
+        visibility: hidden;
+    }
+
+    #print-root,
+    #print-root * {
+        visibility: visible;
+    }
+
+    #print-root {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+    }
+}
+
+.print-section {
+    margin-bottom: 20px;
+    page-break-after: always;
+}
+
+.print-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.print-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10px;
+    table-layout: fixed;
+}
+
+.print-table th,
+.print-table td {
+    border: 1px solid #000;
+    padding: 3px;
+    text-align: center;
+}
+
+.print-table th:first-child,
+.print-table td:first-child {
+    text-align: left;
+    width: 120px;
+}
+
+.calendar-print {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+}
+
+.cal-header {
+    font-weight: 600;
+    text-align: center;
+    font-size: 12px;
+}
+
+.cal-cell {
+    border: 1px solid #000;
+    height: 70px;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+
+    padding: 4px;
+    font-size: 11px;
+}
+
+.cal-cell.empty {
+    border: none;
+}
+
+.cal-day {
+    font-size: 10px;
+    color: #555;
+}
+
+.cal-shift {
+    font-weight: 600;
+    text-align: center;
+}
+
+
+.segmented {
+    display: flex;
+    background: #f2f2f7;
+    border-radius: 12px;
+    padding: 4px;
+    gap: 4px;
+    margin-top: 8px;
+}
+
+.segmented label {
+    flex: 1;
+    cursor: pointer;
+}
+
+.segmented input {
+    display: none;
+}
+
+.segmented span {
+    display: block;
+    text-align: center;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #555;
+    transition: all 0.2s ease;
+}
+
+/* ACTIVE */
+.segmented input:checked+span {
+    background: white;
+    color: black;
+
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+/* hover */
+.segmented span:hover {
+    background: rgba(255, 255, 255, 0.6);
 }

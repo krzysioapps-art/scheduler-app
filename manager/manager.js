@@ -119,23 +119,39 @@ function canModifyShift(existing, departmentId) {
 }
 
 async function refresh(employeesArg, departmentsArg) {
-    const employees = employeesArg || await loadEmployees();
-    const departments = departmentsArg || await loadDepartments();
-    schedules = await loadShifts(YEAR, MONTH);
-    window.requests = await loadRequests(YEAR, MONTH);
-    iframe.contentWindow.postMessage({
-        type: "init",
-        data: {
-            employees,
-            departments,
-            schedules,
-            requests,
-            stats: {}, // na razie puste
-            norm: {},
-            departmentTotals: {},
-            visibleEmployeesByDept: {}
-        }
-    }, "*");
+    showGridLoader(); // 👈 DODAJ TO
+
+    try {
+        // 👇 równolegle (duży boost)
+        const [employees, departments, shifts, reqs] = await Promise.all([
+            employeesArg || loadEmployees(),
+            departmentsArg || loadDepartments(),
+            loadShifts(YEAR, MONTH),
+            loadRequests(YEAR, MONTH)
+        ]);
+
+        schedules = shifts;
+        window.requests = reqs;
+
+        iframe.contentWindow.postMessage({
+            type: "init",
+            data: {
+                employees,
+                departments,
+                schedules,
+                requests,
+                stats: {},
+                norm: {},
+                departmentTotals: {},
+                visibleEmployeesByDept: {}
+            }
+        }, "*");
+
+    } catch (e) {
+        console.error("refresh error:", e);
+    } finally {
+        hideGridLoader(); // 👈 I TO
+    }
 }
 
 function showErrorLocal(employeeId, day, errors) {
@@ -206,6 +222,8 @@ async function saveShift({ employeeId, day, departmentId, start, end }) {
             .from("shift_requests")
             .update({ status: newStatus })
             .eq("id", req.id);
+
+            console.log("UPDATE REQUEST:", { data, error, newStatus, req });
 
         requests[String(employeeId)][day].status = newStatus;
     }

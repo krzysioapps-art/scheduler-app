@@ -7,6 +7,7 @@ const DAYS = new Date(YEAR, MONTH, 0).getDate();
 let EMP_ID = null;
 let requests = {};
 let schedules = {};
+let saveTimeouts = {};
 
 // =====================
 // INIT
@@ -83,7 +84,7 @@ function renderCalendar() {
 
     for (let i = 0; i < offset; i++) {
         const empty = document.createElement("div");
-        empty.className = "day empty";
+        empty.className = "empty";
         el.appendChild(empty);
     }
 
@@ -124,8 +125,8 @@ function renderCalendar() {
         wrapper.appendChild(value);
         cell.appendChild(wrapper);
 
-        if (dow === 6) cell.classList.add("saturday");
-        if (dow === 7) cell.classList.add("sunday");
+        if (dow === 6) dayNum.classList.add("saturday");
+        if (dow === 7) dayNum.classList.add("sunday");
 
         if (req?.status === "pending") cell.classList.add("pending");
         if (req?.status === "accepted") cell.classList.add("accepted");
@@ -152,7 +153,7 @@ function editRequest(day) {
     if (val === null) return;
 
     if (val === "OFF") {
-        saveRequest(day, null, null);
+        scheduleSave(day, null, null);
         return;
     }
 
@@ -163,7 +164,7 @@ function editRequest(day) {
         return;
     }
 
-    saveRequest(day, parsed.start, parsed.end);
+    scheduleSave(day, parsed.start, parsed.end);
 }
 
 // =====================
@@ -185,8 +186,7 @@ async function saveRequest(day, start, end) {
             onConflict: 'employee_id,date'
         });
 
-    requests = await loadRequests(YEAR, MONTH);
-    renderCalendar();
+
 }
 
 // =====================
@@ -276,8 +276,8 @@ async function handleClick(day) {
 
     const req = requests?.[EMP_ID]?.[day];
 
-    if (req?.status === "accepted") {
-        alert("Zmiana została zaakceptowana i nie można jej zmienić");
+    if (req?.status === "accepted" || req?.status === "rejected") {
+        alert("Zmiana została rozpatrzona i nie można jej zmienić");
         return;
     }
 
@@ -286,20 +286,45 @@ async function handleClick(day) {
     if (next === "clear") {
         const date = buildDate(YEAR, MONTH, day);
 
+        // optimistic update
+        if (requests?.[EMP_ID]) {
+            delete requests[EMP_ID][day];
+        }
+
+        renderCalendar();
+
+        // backend
         await client
             .from("shift_requests")
             .delete()
             .eq("employee_id", EMP_ID)
             .eq("date", date);
 
-        requests = await loadRequests(YEAR, MONTH);
-        renderCalendar();
-        return;
+        return; // 🔥 KLUCZOWE
     }
 
-    await saveRequest(day, next.start, next.end);
+    scheduleSave(day, next.start, next.end);
 }
+function scheduleSave(day, start, end) {
+    if (!requests[EMP_ID]) requests[EMP_ID] = {};
 
+    // 🔥 1. natychmiastowy update UI (optimistic)
+    requests[EMP_ID][day] = {
+        ...requests[EMP_ID]?.[day],
+        start,
+        end,
+        status: "pending"
+    };
+
+    renderCalendar();
+
+    // 🔥 2. debounce per dzień
+    clearTimeout(saveTimeouts[day]);
+
+    saveTimeouts[day] = setTimeout(() => {
+        saveRequest(day, start, end);
+    }, 500);
+}
 function getDayOfWeek(year, month, day) {
     const date = new Date(year, month - 1, day);
     let d = date.getDay();

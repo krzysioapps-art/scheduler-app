@@ -13,21 +13,31 @@
     <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
 
     <script src="../components/header.js" defer></script>
-    <link rel="stylesheet" href="../components/header.css">
     <script src="../app.js"></script>
     <script src="manager.js"></script>
 </head>
 
 <body>
+
     <div id="header"></div>
-    <h2>Scheduler</h2>
 
-    <button onclick="exportPDF()">📄 Pobierz PDF</button>
+    <div class="page-header">
 
+        <div class="page-title">
+            <h1>Scheduler</h1>
+        </div>
+
+        <div class="page-actions">
+            <button id="exportPdf" class="btn btn-secondary btn-sm">Pobierz PDF</button>
+        </div>
+
+        <div id="grid-loader" class="grid-loader hidden">
+            <div class="loader-spinner"></div>
+        </div>
+
+    </div>
 
     <div id="app"></div>
-
-
 
     <script>
         console.log("START SCRIPT");
@@ -351,20 +361,14 @@ ${Math.round(totals.hours * 10) / 10}h / ${totals.days}d`;
                                     if (next) startEdit(next);
                                 }
 
-                                if (e.key === "Enter") {
-                                    e.preventDefault();
+                              if (e.key === "Enter") {
+    e.preventDefault();
 
-                                    const row = c.dataset.row;
-                                    const col = +c.dataset.col;
+    const inner = c.querySelector(".cell-content");
+    if (!inner) return;
 
-                                    c.blur();
-
-                                    const next = document.querySelector(
-                                        `.cell[data-row="${row}"][data-col="${col + 1}"]`
-                                    );
-
-                                    if (next) startEdit(next);
-                                }
+    inner.blur(); // 🔥 TO wymusi focusout → zapis
+}
 
                                 if (e.key === "Escape") {
                                     cancel(c, emp.id, d);
@@ -1002,7 +1006,11 @@ ${Math.round(totals.hours * 10) / 10}h / ${totals.days}d`;
                 const list = document.getElementById("empList");
                 const search = document.getElementById("empSearch");
 
-                modal.classList.remove("hidden");
+               modal.classList.remove("hidden");
+
+requestAnimationFrame(() => {
+    modal.classList.add("show");
+});
 
                 let filtered = employees.filter(e => !alreadyAdded.includes(e.id));
                 let selected = new Set();
@@ -1018,18 +1026,36 @@ ${Math.round(totals.hours * 10) / 10}h / ${totals.days}d`;
                         cb.type = "checkbox";
                         cb.checked = selected.has(emp.id);
 
-                        cb.onchange = () => {
-                            if (cb.checked) selected.add(emp.id);
-                            else selected.delete(emp.id);
-                        };
-
                         const label = document.createElement("div");
                         label.innerText = emp.name;
-                        label.style.marginLeft = "8px";
+
+                        // 🔥 FUNKCJA SYNC (1 źródło prawdy)
+                        function updateState() {
+                            if (cb.checked) selected.add(emp.id);
+                            else selected.delete(emp.id);
+
+                            row.classList.toggle("selected", cb.checked);
+                        }
+
+                        // 🔥 klik w cały wiersz
+                        row.onclick = () => {
+                            cb.checked = !cb.checked;
+                            updateState();
+                        };
+
+                        // 🔥 klik w checkbox (bez propagacji)
+                        cb.onclick = (e) => {
+                            e.stopPropagation();
+                        };
+
+                        // 🔥 zmiana checkboxa (np. keyboard)
+                        cb.onchange = updateState;
+
+                        // 🔥 inicjalny stan
+                        updateState();
 
                         row.appendChild(cb);
                         row.appendChild(label);
-
                         list.appendChild(row);
                     });
                 }
@@ -1048,12 +1074,12 @@ ${Math.round(totals.hours * 10) / 10}h / ${totals.days}d`;
                 };
 
                 document.getElementById("empAdd").onclick = () => {
-                    modal.classList.add("hidden");
+                    closeModal(modal);
                     resolve([...selected]);
                 };
 
                 document.getElementById("empCancel").onclick = () => {
-                    modal.classList.add("hidden");
+                    closeModal(modal);
                     resolve(null);
                 };
             });
@@ -1065,22 +1091,289 @@ ${Math.round(totals.hours * 10) / 10}h / ${totals.days}d`;
             norm = getMonthNorm(YEAR, MONTH);
         }
         async function init() {
-            employees = await loadEmployees();
-            departments = await loadDepartments();
+            showGridLoader(); // 👈 TU
 
-            const [sh, req] = await Promise.all([
-                loadShifts(YEAR, MONTH),
-                loadRequests(YEAR, MONTH)
+            try {
+                const [emp, dept, sh, req] = await Promise.all([
+                    loadEmployees(),
+                    loadDepartments(),
+                    loadShifts(YEAR, MONTH),
+                    loadRequests(YEAR, MONTH)
+                ]);
 
-            ]);
-            console.log("REQUESTS:", req);
-            schedules = sh;
-            requests = req;
+                employees = emp;
+                departments = dept;
+                schedules = sh;
+                requests = req;
 
-            recalcAll();
-            // renderHeader jest eksportowany z header.js (moduł) i dostępny przez window
-            if (window.renderHeader) await window.renderHeader();
-            render();
+                recalcAll();
+
+                if (window.renderHeader) await window.renderHeader();
+
+                render();
+            } catch (e) {
+                console.error("INIT ERROR:", e);
+            } finally {
+                hideGridLoader(); // 👈 TU
+            }
+        }
+        function openPdfModal() {
+            const modal = document.getElementById("pdfModal");
+            const depBox = document.getElementById("pdfDepartments");
+            const empBox = document.getElementById("pdfEmployees");
+            const search = document.getElementById("pdfSearch");
+
+         modal.classList.remove("hidden");
+
+requestAnimationFrame(() => {
+    modal.classList.add("show");
+});
+
+            let selectedDeps = new Set(departments.map(d => d.id));
+            let selectedEmps = new Set(employees.map(e => e.id));
+
+            // DZIAŁY
+            depBox.innerHTML = "";
+            departments.forEach(dep => {
+                const row = document.createElement("div");
+                row.className = "emp-row";
+
+                const cb = document.createElement("input");
+                cb.type = "checkbox";
+                cb.checked = true;
+
+                const label = document.createElement("div");
+                label.innerText = dep.name;
+
+                row.onclick = () => {
+                    cb.checked = !cb.checked;
+                    update();
+                };
+
+                cb.onclick = e => e.stopPropagation();
+                cb.onchange = update;
+
+                function update() {
+                    if (cb.checked) selectedDeps.add(dep.id);
+                    else selectedDeps.delete(dep.id);
+                }
+
+                row.appendChild(cb);
+                row.appendChild(label);
+                depBox.appendChild(row);
+            });
+
+            // PRACOWNICY
+            let filtered = employees;
+
+            function renderEmployees() {
+                empBox.innerHTML = "";
+
+                filtered.forEach(emp => {
+                    const row = document.createElement("div");
+                    row.className = "emp-row";
+
+                    const cb = document.createElement("input");
+                    cb.type = "checkbox";
+                    cb.checked = selectedEmps.has(emp.id);
+
+                    const label = document.createElement("div");
+                    label.innerText = emp.name;
+
+                    row.onclick = () => {
+                        cb.checked = !cb.checked;
+                        update();
+                    };
+
+                    cb.onclick = e => e.stopPropagation();
+                    cb.onchange = update;
+
+                    function update() {
+                        if (cb.checked) selectedEmps.add(emp.id);
+                        else selectedEmps.delete(emp.id);
+                    }
+
+                    row.appendChild(cb);
+                    row.appendChild(label);
+                    empBox.appendChild(row);
+                });
+            }
+
+            renderEmployees();
+
+            search.oninput = (e) => {
+                const val = e.target.value.toLowerCase();
+                filtered = employees.filter(e =>
+                    e.name.toLowerCase().includes(val)
+                );
+                renderEmployees();
+            };
+
+            document.getElementById("pdfGenerate").onclick = () => {
+                closeModal(modal);
+
+                const mode = document.querySelector('input[name="pdfMode"]:checked').value;
+
+                if (mode === "table") {
+                    generatePdfClick([...selectedDeps], [...selectedEmps]);
+                }
+
+                if (mode === "employee") {
+                    generateEmployeePdf([...selectedEmps]);
+                }
+            };
+
+            document.getElementById("pdfCancel").onclick = () => {
+                closeModal(modal);
+            };
+        }
+        function generatePdfClick(selectedDeps, selectedEmps) {
+            const root = document.getElementById("print-root");
+            root.innerHTML = "";
+
+            departments
+                .filter(dep => selectedDeps.includes(dep.id))
+                .forEach(dept => {
+
+                    const section = document.createElement("div");
+                    section.className = "print-section";
+
+                    const title = document.createElement("div");
+                    title.className = "print-title";
+                    title.innerText = dept.name;
+                    section.appendChild(title);
+
+                    const table = document.createElement("table");
+                    table.className = "print-table";
+
+                    const thead = document.createElement("thead");
+                    const tr = document.createElement("tr");
+
+                    tr.innerHTML =
+                        `<th>Pracownik</th>` +
+                        Array.from({ length: DAYS }, (_, i) => `<th>${i + 1}</th>`).join("");
+
+                    thead.appendChild(tr);
+                    table.appendChild(thead);
+
+                    const tbody = document.createElement("tbody");
+
+                    const deptEmployees = employees
+                        .filter(emp => selectedEmps.includes(emp.id))
+                        .filter(emp =>
+                            Object.values(schedules[emp.id] || {})
+                                .some(s => s?.departmentId === dept.id)
+                        );
+
+                    deptEmployees.forEach(emp => {
+
+                        const row = document.createElement("tr");
+                        let cells = `<td>${emp.name}</td>`;
+
+                        for (let d = 1; d <= DAYS; d++) {
+                            const shift = schedules[emp.id]?.[d];
+
+                            if (shift && shift.departmentId === dept.id) {
+                                const start = shift.start?.slice(0, 5).replace(":00", "");
+                                const end = shift.end?.slice(0, 5).replace(":00", "");
+                                cells += `<td>${start}-${end}</td>`;
+                            } else {
+                                cells += `<td></td>`;
+                            }
+                        }
+
+                        row.innerHTML = cells;
+                        tbody.appendChild(row);
+                    });
+
+                    table.appendChild(tbody);
+                    section.appendChild(table);
+                    root.appendChild(section);
+                });
+
+            root.classList.remove("hidden");
+            window.print();
+
+            setTimeout(() => {
+                root.classList.add("hidden");
+                root.innerHTML = "";
+            }, 500);
+        }
+        function generateEmployeePdf(selectedEmps) {
+            const root = document.getElementById("print-root");
+            root.innerHTML = "";
+
+            selectedEmps.forEach(empId => {
+                const emp = employees.find(e => e.id == empId);
+                if (!emp) return;
+
+                const section = document.createElement("div");
+                section.className = "print-section";
+
+                // 🔵 tytuł
+                const title = document.createElement("div");
+                title.className = "print-title";
+                title.innerText = `${emp.name} – ${MONTH}/${YEAR}`;
+                section.appendChild(title);
+
+                const grid = document.createElement("div");
+                grid.className = "calendar-print";
+
+                // 🔵 nagłówki dni
+                const days = ["Pn", "Wt", "Śr", "Czw", "Pt", "Sb", "Nd"];
+                days.forEach(d => {
+                    const el = document.createElement("div");
+                    el.className = "cal-header";
+                    el.innerText = d;
+                    grid.appendChild(el);
+                });
+
+                // 🔵 pierwszy dzień miesiąca
+                const firstDay = getDayOfWeek(YEAR, MONTH, 1); // 1-7
+
+                // puste komórki
+                for (let i = 1; i < firstDay; i++) {
+                    const empty = document.createElement("div");
+                    empty.className = "cal-cell empty";
+                    grid.appendChild(empty);
+                }
+
+                // 🔵 dni miesiąca
+                for (let d = 1; d <= DAYS; d++) {
+                    const cell = document.createElement("div");
+                    cell.className = "cal-cell";
+
+                    const shift = schedules[empId]?.[d];
+
+                    const dayNumber = document.createElement("div");
+                    dayNumber.className = "cal-day";
+                    dayNumber.innerText = d;
+
+                    const value = document.createElement("div");
+                    value.className = "cal-shift";
+
+                    if (shift) {
+                        const start = shift.start?.slice(0, 5).replace(":00", "");
+                        const end = shift.end?.slice(0, 5).replace(":00", "");
+                        value.innerText = `${start}-${end}`;
+                    }
+
+                    cell.appendChild(dayNumber);
+                    cell.appendChild(value);
+                    grid.appendChild(cell);
+                }
+
+                section.appendChild(grid);
+                root.appendChild(section);
+            });
+
+            root.classList.remove("hidden");
+            window.print();
+
+            setTimeout(() => {
+                root.classList.add("hidden");
+                root.innerHTML = "";
+            }, 500);
         }
         function getRequest(empId, day) {
             return requests?.[String(empId)]?.[day] || null;
@@ -1092,36 +1385,92 @@ ${Math.round(totals.hours * 10) / 10}h / ${totals.days}d`;
             await init();
         })();
 
-        function exportPDF() {
-            const element = document.getElementById("app");
-
-            const opt = {
-                margin: 0.5,
-                filename: `grafik_${YEAR}_${MONTH}.pdf`,
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 1 },
-                jsPDF: { unit: 'cm', format: 'a4', orientation: 'landscape' }
-            };
-
-            html2pdf().set(opt).from(element).save();
+        function showGridLoader() {
+            document.getElementById("grid-loader")?.classList.remove("hidden");
         }
+
+        function hideGridLoader() {
+            document.getElementById("grid-loader")?.classList.add("hidden");
+        }
+
+        function closeModal(modal) {
+    modal.classList.add("closing");
+    modal.classList.remove("show");
+
+    setTimeout(() => {
+        modal.classList.add("hidden");
+        modal.classList.remove("closing");
+    }, 220); // musi pasować do CSS
+}
+
+        document.getElementById("exportPdf").onclick = openPdfModal;
 
     </script>
 
     <div id="employeeModal" class="modal hidden">
         <div class="modal-content">
 
-            <input id="empSearch" placeholder="Szukaj pracownika..." />
+            <div class="modal-header">
+                <h3>Dodaj pracowników</h3>
+            </div>
+
+            <div class="modal-search">
+                <input id="empSearch" placeholder="Szukaj pracownika..." />
+            </div>
 
             <div id="empList"></div>
 
             <div class="modal-actions">
-                <button id="empCancel">Anuluj</button>
-                <button id="empAdd">Dodaj</button>
+                <button id="empCancel" class="btn btn-secondary">Anuluj</button>
+                <button id="empAdd" class="btn btn-primary">Dodaj</button>
             </div>
 
         </div>
     </div>
+
+    <div id="pdfModal" class="modal hidden">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h3>Generuj PDF</h3>
+            </div>
+
+            <div class="modal-search">
+                <strong>Widok</strong>
+
+                <div class="segmented">
+                    <label>
+                        <input type="radio" name="pdfMode" value="table" checked>
+                        <span>Zbiorcze</span>
+                    </label>
+
+                    <label>
+                        <input type="radio" name="pdfMode" value="employee">
+                        <span>Pracownicy</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="modal-search">
+                <strong>Działy</strong>
+                <div id="pdfDepartments"></div>
+            </div>
+
+            <div class="modal-search">
+                <strong>Pracownicy</strong>
+                <input id="pdfSearch" placeholder="Szukaj..." />
+                <div id="pdfEmployees"></div>
+            </div>
+
+            <div class="modal-actions">
+                <button id="pdfCancel" class="btn btn-secondary">Anuluj</button>
+                <button id="pdfGenerate" class="btn btn-primary">Generuj</button>
+            </div>
+
+        </div>
+    </div>
+
+    <div id="print-root" class="hidden"></div>
 
 
 </body>
