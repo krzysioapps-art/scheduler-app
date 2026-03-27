@@ -13,12 +13,39 @@
 
 <body>
 
-    <h1>Czas pracy</h1>
+    <div class="container">
 
-    <div id="info"></div>
+        <div class="page-header">
+            <div class="page-title">
+                <h1>Czas pracy</h1>
+            </div>
 
-    <button id="startBtn">Rozpocznij pracę</button>
-    <button id="endBtn">Zakończ pracę</button>
+            <div class="page-actions">
+                <!-- opcjonalnie coś później -->
+            </div>
+        </div>
+
+        <div class="schedule">
+
+            <div class="header">
+                <div>
+                    <span id="info"></span>
+                </div>
+            </div>
+
+            <div style="padding: 16px; display: flex; gap: 12px;">
+                <button id="startBtn" class="btn btn-primary">
+                    ▶ Rozpocznij pracę
+                </button>
+
+                <button id="endBtn" class="btn btn-secondary">
+                    ⏹ Zakończ pracę
+                </button>
+            </div>
+
+        </div>
+
+    </div>
 
     <script src="/employee/worktime/worktime.js"></script>
 

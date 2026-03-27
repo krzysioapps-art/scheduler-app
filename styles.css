@@ -1295,3 +1295,116 @@ button:hover {
 .segmented span:hover {
     background: rgba(255, 255, 255, 0.6);
 }
+
+/* ========================
+   📱 GLOBAL MOBILE IMPROVEMENTS
+======================== */
+
+@media (max-width: 600px) {
+
+    /* container */
+    .container {
+        margin: 0;
+        padding: 0 10px;
+    }
+
+    /* header */
+    .page-header {
+        margin: 10px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .page-title h1 {
+        font-size: 20px;
+    }
+
+    /* schedule jako card */
+    .schedule {
+        margin: 10px;
+        border-radius: 14px;
+    }
+
+    /* header inside card */
+    .schedule .header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+
+    /* BUTTONS STACK */
+    .schedule > div:last-child {
+        flex-direction: column;
+    }
+
+    .btn {
+        width: 100%;
+        padding: 14px;
+        font-size: 15px;
+    }
+
+    /* większy tap target */
+    button {
+        min-height: 44px;
+    }
+}
+
+/* ========================
+   🖥 TERMINAL / KIOSK MODE
+======================== */
+
+body {
+    touch-action: manipulation;
+}
+
+/* centrowanie całego UI */
+#qr, #pin, #timer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* QR większy */
+#qr canvas {
+    width: 260px !important;
+    height: 260px !important;
+}
+
+/* PIN - duży i czytelny */
+#pin {
+    font-size: 28px;
+    font-weight: 600;
+}
+
+/* TIMER - bardzo duży */
+#timer {
+    font-size: 40px;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+/* ========================
+   📟 TABLET (landscape kiosk)
+======================== */
+
+@media (min-width: 768px) {
+
+    .schedule {
+        max-width: 600px;
+        margin: auto;
+    }
+
+    #qr canvas {
+        width: 320px !important;
+        height: 320px !important;
+    }
+
+    #pin {
+        font-size: 34px;
+    }
+
+    #timer {
+        font-size: 48px;
+    }
+}
