@@ -212,7 +212,11 @@ ${Math.round(totals.hours * 10) / 10}h / ${totals.days}d`;
 
                 const grid = document.createElement("div");
                 grid.className = "grid";
-                grid.style.gridTemplateColumns = `180px repeat(${DAYS}, 1fr) 100px 100px 100px`;
+                grid.style.gridTemplateColumns = `2fr 
+  repeat(${DAYS}, minmax(36px, 1fr)) 
+  1fr 
+  1fr 
+  1fr`;
                 grid.appendChild(cell("Pracownik", "dayHeader"));
 
                 for (let d = 1; d <= DAYS; d++) {

@@ -319,7 +319,6 @@ body {
     align-items: center;
     justify-content: center;
     line-height: 1.1;
-    border-left: 1px solid var(--border);
 }
 
 .summary .hours {
@@ -876,7 +875,6 @@ button:hover {
 }
 
 .container {
-    max-width: 900px;
     margin: 40px auto;
     padding: 0 16px;
 }
@@ -1382,29 +1380,4 @@ body {
     font-size: 40px;
     font-weight: 700;
     color: var(--primary);
-}
-
-/* ========================
-   📟 TABLET (landscape kiosk)
-======================== */
-
-@media (min-width: 768px) {
-
-    .schedule {
-        max-width: 600px;
-        margin: auto;
-    }
-
-    #qr canvas {
-        width: 320px !important;
-        height: 320px !important;
-    }
-
-    #pin {
-        font-size: 34px;
-    }
-
-    #timer {
-        font-size: 48px;
-    }
 }
