@@ -112,7 +112,7 @@ async function handleWorkAction(userId, token) {
         const { error } = await client.from("work_sessions").insert({
             user_id: userId,
             status: "active",
-            terminal_id: token.terminal_id
+           // terminal_id: token.terminal_id
         });
 
         if (error) {
